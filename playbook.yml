@@ -41,9 +41,7 @@
         enabled: yes
 
     - name: Caricare moduli virtio
-      community.general.modprobe:
-        name: "{{ item }}"
-        state: present
+      ansible.builtin.command: "modprobe {{ item }}"
       loop: "{{ virtio_modules }}"
       ignore_errors: yes
 
