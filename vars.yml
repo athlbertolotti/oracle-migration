@@ -1,0 +1,14 @@
+vmware_packages:
+  - open-vm-tools
+  - open-vm-tools-desktop
+  - VMwareTools
+
+proxmox_packages:
+  - qemu-guest-agent
+
+virtio_modules:
+  - virtio
+  - virtio_pci
+  - virtio_net
+  - virtio_blk
+  - virtio_scsi
