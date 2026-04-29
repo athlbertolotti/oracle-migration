@@ -1,0 +1,69 @@
+---
+- name: Migrazione Oracle Linux da VMware a Proxmox
+  hosts: oracle_vms
+  become: yes
+  vars_files:
+    - vars.yml
+
+  tasks:
+
+    - name: Verifica sistema operativo
+      ansible.builtin.debug:
+        msg: "Sistema {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+    - name: Fermare servizio vmtoolsd se presente
+      ansible.builtin.service:
+        name: vmtoolsd
+        state: stopped
+      ignore_errors: yes
+
+    - name: Disabilitare vmtoolsd
+      ansible.builtin.service:
+        name: vmtoolsd
+        enabled: no
+      ignore_errors: yes
+
+    - name: Rimuovere pacchetti VMware
+      ansible.builtin.package:
+        name: "{{ vmware_packages }}"
+        state: absent
+      ignore_errors: yes
+
+    - name: Installare qemu guest agent
+      ansible.builtin.package:
+        name: "{{ proxmox_packages }}"
+        state: present
+
+    - name: Abilitare qemu guest agent
+      ansible.builtin.service:
+        name: qemu-guest-agent
+        state: started
+        enabled: yes
+
+    - name: Caricare moduli virtio
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ virtio_modules }}"
+      ignore_errors: yes
+
+    - name: Persistenza moduli virtio
+      ansible.builtin.lineinfile:
+        path: /etc/modules-load.d/virtio.conf
+        line: "{{ item }}"
+        create: yes
+      loop: "{{ virtio_modules }}"
+
+    - name: Rigenerare initramfs Oracle/RHEL 8+
+      ansible.builtin.command: dracut -f
+      when: ansible_distribution_major_version | int >= 8
+
+    - name: Rigenerare initramfs Oracle/RHEL 7
+      ansible.builtin.command: mkinitrd -f /boot/initramfs-$(uname -r).img $(uname -r)
+      when: ansible_distribution_major_version | int == 7
+      ignore_errors: yes
+
+    - name: Riavviare VM
+      ansible.builtin.reboot:
+        msg: "Riavvio per completare la migrazione a Proxmox"
+        reboot_timeout: 600
